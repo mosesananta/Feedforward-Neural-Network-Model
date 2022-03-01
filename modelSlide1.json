@@ -1,0 +1,11 @@
+[
+    {
+        "neurons": [[-10, 20, 20], [30, -20, -20]],
+        "activation_function": "sigmoid"
+    },
+
+    {
+        "neurons": [[-30, 20, 20]],
+        "activation_function": "sigmoid"
+    }
+]
