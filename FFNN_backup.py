@@ -74,7 +74,7 @@ class FeedForwardNeuralNetwork:
 
     def predict_data(self, x):
     # Predict result from each neurons
-        isValid = self.checkInput(x)
+        isValid = True #self.checkInput(x)
         if not isValid:
             raise SystemExit()
         else:
@@ -131,10 +131,16 @@ class FeedForwardNeuralNetwork:
                 mini_batch_error = self.calculate_mini_batch_error(mini_batch, data_outputs)
                 # Update Weight
                 xs = []
+                
                 for data in mini_batch:
                     xs.append(self.predict_data(data["x"])[:-1])
+
+                
                 for data_idx in range(len(mini_batch)):
-                    xs[data_idx].insert(0, data[data_idx]["x"])
+                    
+                    xs[data_idx].insert(0, mini_batch[data_idx]["x"])
+
+                
                 self.update_weight(learning_rate, mini_batch_error, xs)
                 # Calculate total error
                 if self.model[-1]["activation_function"] == "softmax":
@@ -142,17 +148,22 @@ class FeedForwardNeuralNetwork:
                         for neuron_idx in range(len(data_output)):
                             total_error[neuron_idx] += -1 * math.log(data_output[neuron_idx])
                 else:
+                    
                     for data_idx in range(len(mini_batch)):
-                        for neuron_idx in range(len(mini_batch[data_idx])):
+                        for neuron_idx in range(len(mini_batch[data_idx]["y"])):
+                            
                             total_error[neuron_idx] += 0.5 * ((mini_batch[data_idx]["y"][neuron_idx] - data_outputs[data_idx][neuron_idx]) ** 2)
             # Check Threshold
             below_threshold = True
             for error_idx in range(len(total_error)):
-                if not total_error[error_idx] < error_threshold[error_idx]:
+                if not (total_error[error_idx] < error_threshold):
+                    print("Iteration: " + str(i) + " Error: " + str(total_error[error_idx]))
                     below_threshold = False
                     break
+            i += 1
+        return below_threshold,i
 
-    def sum_array(arr1, arr2):
+    def sum_array(self,arr1, arr2):
         result = []
         arr1_length = len(arr1)
         if (arr1_length != len(arr2)):
@@ -167,7 +178,7 @@ class FeedForwardNeuralNetwork:
         all_deltas = []
         for layer in self.model:
             all_deltas.append([])
-            for _ in layer:
+            for _ in layer["neurons"]:
                 all_deltas[-1].append(0)
 
         for data in mini_batch:
@@ -176,9 +187,12 @@ class FeedForwardNeuralNetwork:
             outputs.append(predictions[-1])
 
             # Calculate Delta
+            # # print(all_deltas)
+            # # print(all_deltas[-1])
+            # # print(self.calculate_delta_output(predictions[-1], data["y"]))
             all_deltas[-1] = self.sum_array(all_deltas[-1], self.calculate_delta_output(predictions[-1], data["y"]))
             for i in range((len(all_deltas[:-1]) - 1), -1, -1):
-                all_deltas[i] = self.sum_array(all_deltas[i], self.calculate_delta_hidden(i, predictions[i], all_deltas[i+1]))
+                all_deltas[i] = self.sum_array(all_deltas[i], self.calculate_delta_hidden(i, predictions[i], all_deltas[i+1],predictions[-1], data["y"]))
         
         return all_deltas
 
@@ -226,15 +240,19 @@ class FeedForwardNeuralNetwork:
             layer = self.model[layer_idx]
             for neuron_idx in range(len(layer["neurons"])):
                 neuron = layer["neurons"][neuron_idx]
+
                 for weight_idx in range(len(neuron)):
                     if weight_idx == 0:
                         neuron[weight_idx] += learning_rate * deltas[layer_idx][neuron_idx]
                     else:
                         x_sum = 0
                         for data in xs:
-                            x_sum += data[layer_idx][weight_idx]
+                            x_sum += data[layer_idx][weight_idx-1]
+                       
                         x_average = x_sum / len(xs)
+                       
                         neuron[weight_idx] += learning_rate * deltas[layer_idx][neuron_idx] * x_average
+                        
 
     # Activation functions
     def sigmoid(self, x):
@@ -279,26 +297,32 @@ class FeedForwardNeuralNetwork:
             for j in range(len(output_matrix[i])):
                 loss += 0.5 * (output_matrix[i][j] - y_matrix[i][j]) ** 2
         return loss
-
-   
-        
-
-    
-        
-
-
-
-    
-    
+ 
     
 
 if __name__ == "__main__":
     FFNN = FeedForwardNeuralNetwork()
     FFNN.loadModel()
-    FFNN.printModel()
-    inputs = [[0, 0]]
+    #FFNN.printModel()
+    training_data = [{"x": [0, 0], "y": [0]},
+    {"x": [0, 1], "y": [1]},
+    {"x": [1, 0], "y": [1]},
+    {"x": [1, 1], "y": [0]}]
+
     
-    outputs = FFNN.backpropagation(inputs, inputs)
+
+    Convergence,iteration = FFNN.train(training_data,2,0.1,0.00001,100000000)
+    print("Is Convergen?",Convergence,"Iteration:",iteration)
+    FFNN.printModel()
+
+    inputs = [[0, 0], [0, 1], [1, 0], [1, 1]]
+    outputs = FFNN.predict(inputs)
+    container = []
+    for i in range(len(inputs)):
+        container.append((inputs[i], outputs[i]))
+    print("Prediction results:")
+    for line in container:
+        print(str(line[0]) + " outputs " + str(line[1]))
 
     # container = []
     # for i in range(len(inputs)):
